@@ -2,6 +2,7 @@ import requests, os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import json 
+from dateutil import parser
 
 load_dotenv()
 
@@ -66,7 +67,7 @@ def get_latest_activity(token):
 
 def get_spotify_tracks(token):
     r = requests.get(
-        "https://api.spotify.com/v1/me/player/recently-played?limit=50",
+        "https://api.spotify.com/v1/me/player/recently-played?limit=20",
         headers={"Authorization": f"Bearer {token}"}
     )
     data = r.json()
@@ -88,26 +89,30 @@ def get_spotify_tracks(token):
     return data["items"]
 
 def match_tracks(activity, tracks):
-    start = datetime.fromisoformat(activity["start_date"].replace("Z",""))
+    start = parser.isoparse(activity["start_date"])
     end = start + timedelta(seconds=activity["elapsed_time"])
 
+    print(f"Activity: {activity['name']}")
+    print(f"Type: {activity['sport_type']}")
+    print(f"elapsed_time: {activity['elapsed_time']}s")
+    print(f"moving_time: {activity['moving_time']}s")
+    print("Raw Strava start_date:", activity["start_date"])
+    print("Raw Strava start_date_local:", activity["start_date_local"])
     matched = []
 
     for t in tracks:
-        played = datetime.fromisoformat(t["played_at"].replace("Z",""))
+        played_at = parser.isoparse(t["played_at"])  # when the track FINISHED
 
+        # Only match if the track finished within the workout window
         name = t["track"]["name"]
-
-        if start - timedelta(minutes=1) <= played <= end + timedelta(minutes=1):
-            print("✅ MATCH:", played, "|", name)
-            matched.append(f"{name} — {t['track']['artists'][0]['name']}")
+        if start <= played_at <= end:
+            matched.append(f"{name} by {t['track']['artists'][0]['name']}")
+            print("✅ MATCH:", played_at, "|", name)
         else:
-            print("❌ SKIP :", played, "|", name)
+            print("❌ SKIP :", played_at, "|", name)
 
-    print("\n🏃 Strava activity window:")
-    print("START:", start)
-    print("END  :", end)
     return matched
+
 
 def update_strava(activity_id, token, tracks):
     if not tracks:
