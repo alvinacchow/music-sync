@@ -25,26 +25,18 @@ def get_strava_token():
     return data["access_token"]
 
 def get_spotify_token():
-    with open(".cache", "r") as f:
-        cache = json.load(f)
-
-    refresh_token = cache["refresh_token"]
-
     r = requests.post(
         "https://accounts.spotify.com/api/token",
         data={
             "grant_type": "refresh_token",
-            "refresh_token": refresh_token,
+            "refresh_token": os.getenv("SPOTIFY_REFRESH_TOKEN"),
             "client_id": os.getenv("SPOTIFY_CLIENT_ID"),
             "client_secret": os.getenv("SPOTIFY_CLIENT_SECRET")
         }
     )
-
     data = r.json()
-
     if "access_token" not in data:
         raise Exception(data)
-
     return data["access_token"]
 
 
@@ -114,8 +106,14 @@ def match_tracks(activity, tracks):
     return matched
 
 
-def update_strava(activity_id, token, tracks):
+def update_strava(activity_id, token, tracks, activity):
     if not tracks:
+        return
+
+    # Don't overwrite if already synced
+    existing_description = activity.get("description") or ""
+    if "🎧 Workout playlist:" in existing_description:
+        print("Already synced, skipping.")
         return
 
     description = "🎧 Workout playlist:\n" + "\n".join(f"- {t}" for t in tracks)

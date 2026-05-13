@@ -10,7 +10,6 @@ def main():
 
     print("MATCHED TRACKS:", matched)
 
-    backend.update_strava(activity["id"], strava_token, matched)
-
+    backend.update_strava(activity["id"], strava_token, matched, activity)
 if __name__ == "__main__":
     main()
