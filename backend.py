@@ -95,13 +95,14 @@ def match_tracks(activity, tracks):
     print(f"moving_time: {activity['moving_time']}s")
     print("Raw Strava start_date:", activity["start_date"])
     print("Raw Strava start_date_local:", activity["start_date_local"])
-    matched = []
 
-    # Filter to workout window first
+    # Filter to tracks that started after workout began and finished before workout ended
     window_tracks = []
     for t in tracks:
         played_at = parser.isoparse(t["played_at"])
-        if start <= played_at <= end:
+        track_started = played_at - timedelta(milliseconds=t["track"]["duration_ms"])
+
+        if track_started >= start and played_at <= end:
             window_tracks.append((played_at, t))
 
     # Sort ascending so we can compute gaps between tracks
@@ -112,7 +113,7 @@ def match_tracks(activity, tracks):
 
     for i, (played_at, t) in enumerate(window_tracks):
         duration = timedelta(milliseconds=t["track"]["duration_ms"])
-        
+
         if i == 0:
             listen_time = played_at - start
         else:
