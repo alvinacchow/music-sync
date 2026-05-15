@@ -59,7 +59,7 @@ def get_latest_activity(token):
 
 def get_spotify_tracks(token):
     r = requests.get(
-        "https://api.spotify.com/v1/me/player/recently-played?limit=20",
+        "https://api.spotify.com/v1/me/player/recently-played?limit=50",
         headers={"Authorization": f"Bearer {token}"}
     )
     data = r.json()
@@ -119,7 +119,7 @@ def match_tracks(activity, tracks):
 
         if ratio >= LISTEN_THRESHOLD:
             print(f"✅ MATCH ({ratio:.0%} listened): {name}")
-            matched.append(f"{name} — {artist}")
+            matched.append(f"{name} by {artist}")
         else:
             print(f"⏭️  SKIP  ({ratio:.0%} listened): {name}")
 
@@ -132,6 +132,8 @@ def update_strava(activity_id, token, tracks, activity):
 
     # Don't overwrite if already synced
     existing_description = activity.get("description") or ""
+    print(f"Existing description: '{existing_description}'")
+
     if "🎧 Workout playlist:" in existing_description:
         print("Already synced, skipping.")
         return
@@ -141,8 +143,10 @@ def update_strava(activity_id, token, tracks, activity):
     # Append to existing description if there is one
     if existing_description.strip():
         description = existing_description.strip() + "\n\n" + playlist
+        print("Appending to existing description")
     else:
         description = playlist
+        print("New description written")
 
     requests.put(
         f"https://www.strava.com/api/v3/activities/{activity_id}",
