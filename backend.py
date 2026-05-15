@@ -92,16 +92,36 @@ def match_tracks(activity, tracks):
     print("Raw Strava start_date_local:", activity["start_date_local"])
     matched = []
 
+    # Filter to workout window first
+    window_tracks = []
     for t in tracks:
-        played_at = parser.isoparse(t["played_at"])  # when the track FINISHED
-
-        # Only match if the track finished within the workout window
-        name = t["track"]["name"]
+        played_at = parser.isoparse(t["played_at"])
         if start <= played_at <= end:
-            matched.append(f"{name} by {t['track']['artists'][0]['name']}")
-            print("✅ MATCH:", played_at, "|", name)
+            window_tracks.append((played_at, t))
+
+    # Sort ascending so we can compute gaps between tracks
+    window_tracks.sort(key=lambda x: x[0])
+
+    LISTEN_THRESHOLD = 0.5
+    matched = []
+
+    for i, (played_at, t) in enumerate(window_tracks):
+        duration = timedelta(milliseconds=t["track"]["duration_ms"])
+        
+        if i == 0:
+            listen_time = played_at - start
         else:
-            print("❌ SKIP :", played_at, "|", name)
+            listen_time = played_at - window_tracks[i - 1][0]
+
+        ratio = listen_time / duration
+        name = t["track"]["name"]
+        artist = t["track"]["artists"][0]["name"]
+
+        if ratio >= LISTEN_THRESHOLD:
+            print(f"✅ MATCH ({ratio:.0%} listened): {name}")
+            matched.append(f"{name} — {artist}")
+        else:
+            print(f"⏭️  SKIP  ({ratio:.0%} listened): {name}")
 
     return matched
 
@@ -116,7 +136,13 @@ def update_strava(activity_id, token, tracks, activity):
         print("Already synced, skipping.")
         return
 
-    description = "🎧 Workout playlist:\n" + "\n".join(f"- {t}" for t in tracks)
+    playlist = "🎧 Workout playlist:\n" + "\n".join(f"- {t}" for t in tracks)
+    
+    # Append to existing description if there is one
+    if existing_description.strip():
+        description = existing_description.strip() + "\n\n" + playlist
+    else:
+        description = playlist
 
     requests.put(
         f"https://www.strava.com/api/v3/activities/{activity_id}",
