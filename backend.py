@@ -48,14 +48,19 @@ def get_latest_activity(token):
 
     data = r.json()
 
-    # IMPORTANT: handle API errors cleanly
     if not isinstance(data, list):
         raise Exception(f"Strava API error: {data}")
 
     if len(data) == 0:
         raise Exception("No activities found")
 
-    return data[0]
+    # Fetch full activity detail to get description
+    activity_id = data[0]["id"]
+    r2 = requests.get(
+        f"https://www.strava.com/api/v3/activities/{activity_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    return r2.json()
 
 def get_spotify_tracks(token):
     r = requests.get(
